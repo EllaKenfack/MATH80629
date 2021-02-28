@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Feb 27 16:01:02 2021
-
 @author: Admin
 """
 
 """
 Import necessary modules
-
 """
 
 import numpy as np
@@ -24,7 +22,6 @@ from sklearn.metrics import classification_report, confusion_matrix, accuracy_sc
 
 """
 Import training and test dataset
-
 """
 
 filename =r'C:\Users\Admin\Documents\Cours\MATH80629\Project\dataset.txt'
