@@ -17,11 +17,17 @@ from keras.preprocessing.text import one_hot
 from keras.preprocessing.sequence import pad_sequences
 from keras.models import Sequential
 from keras.layers.core import Activation, Dropout, Dense
-from keras.layers import Flatten
-from keras.layers import GlobalMaxPooling1D
+from keras.layers import Flatten,LSTM,GRU, GlobalMaxPooling1D
+from keras.layers.convolutional import Conv1D  
 from keras.layers.embeddings import Embedding
 from sklearn.model_selection import train_test_split
 from keras.preprocessing.text import Tokenizer
+from keras.wrappers.scikit_learn import KerasRegressor
+from sklearn.model_selection import cross_val_score
+
+# from keras.models import *
+# from keras.layers import *
+# from keras.callbacks import *
 
 
 """
@@ -85,10 +91,13 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 Preparing the Embedding Layer
 
 """
+#Tokenize the sentences
+tokenizer = Tokenizer(num_words=10000)
 
-tokenizer = Tokenizer(num_words=5000)
+#preparing vocabulary
 tokenizer.fit_on_texts(X_train)
 
+#converting text into integer sequences
 X_train = tokenizer.texts_to_sequences(X_train)
 X_test = tokenizer.texts_to_sequences(X_test)
 
@@ -96,8 +105,8 @@ X_test = tokenizer.texts_to_sequences(X_test)
 # Adding 1 because of reserved 0 index
 vocab_size = len(tokenizer.word_index) + 1
 
-maxlen = 100
-
+#padding to prepare sequences of same length
+maxlen = 700
 X_train = pad_sequences(X_train, padding='post', maxlen=maxlen)
 X_test = pad_sequences(X_test, padding='post', maxlen=maxlen)
 
@@ -124,23 +133,112 @@ for word, index in tokenizer.word_index.items():
     if embedding_vector is not None:
         embedding_matrix[index] = embedding_vector
 
+
 """
 
 Simple Neural Network
 
 """
 
-model = Sequential()
-embedding_layer = Embedding(vocab_size, 100, weights=[embedding_matrix], input_length=maxlen , trainable=False)
-model.add(embedding_layer)
+cvscores = []
 
-model.add(Flatten())
-model.add(Dense(1, activation='relu'))
+  # create model
+model1 = Sequential()
+embedding_layer1 = Embedding(vocab_size, 100, weights=[embedding_matrix], input_length=maxlen , trainable=False)
+model1.add(embedding_layer1)
+model1.add(Flatten())
+model1.add(Dense(1, activation='relu'))
+  # Compile model
+model1.compile(optimizer="Adam", loss="mse", metrics=["mae",'mape'])
+print(model1.summary())
+# Fit the model
+history1 = model1.fit(X_train, y_train, batch_size=128, epochs=6, verbose=1, validation_split=0.2)
+# Score the model
+score1=model1.evaluate(X_test, y_test,verbose=1)
+plt.plot(history1.history['mae'])
+plt.plot(history1.history['mape'])
+plt.legend(('mse','mae','mape'))
+plt.show()
 
-model.compile(optimizer="Adam", loss="mse", metrics=["mae",'mape'])
 
-print(model.summary())
+# # define base model (method using cross validation)
+# def baseline_model():
+#     # create model
+#     model1 = Sequential()    
+#     embedding_layer1 = Embedding(vocab_size, 100, weights=[embedding_matrix],input_length=maxlen,trainable=False)
+#     model1.add(embedding_layer1)
+#     model1.add(Flatten())
+#     model1.add(Dense(1, activation='relu'))
+#     # Compile model
+#     model1.compile(loss='mean_squared_error', optimizer='adam',metrics=['mape'])
+#     return model1
 
-history = model.fit(X_train, y_train, batch_size=128, epochs=6, verbose=1, validation_split=0.2)
+# regressor = KerasRegressor(build_fn=baseline_model, nb_epoch=100, batch_size=10, verbose=0)
+# results = cross_val_score(estimator=regressor,X = X_train, y = y_train, cv=5, n_jobs=1)
+# print("Results: %.2f (%.2f) MSE" % (results.mean(), results.std()))
 
+
+
+"""
+
+Convolutional Neural Network
+
+"""
+# create model
+model2 = Sequential()
+embedding_layer2 = Embedding(vocab_size, 100, weights=[embedding_matrix], input_length=maxlen , trainable=False)
+model2.add(embedding_layer2)
+model2.add(Conv1D(128, 5, activation='relu'))
+model2.add(GlobalMaxPooling1D())
+model2.add(Dense(1, activation='relu'))
+ # Compile model
+model2.compile(optimizer="Adam", loss="mse", metrics=["mae",'mape'])
+print(model2.summary())
+# Fit the model
+history2 = model2.fit(X_train, y_train, batch_size=128, epochs=6, verbose=1, validation_split=0.2)
+# Score the model
+score2 = model2.evaluate(X_test, y_test, verbose=1)
+
+plt.plot(history2.history['mae'])
+plt.plot(history2.history['mape'])
+plt.legend(('mae','mape'))
+plt.show()
+
+# """
+
+# Recurrent Neural Network (LSTM)
+
+# """
+
+# create model
+model3 = Sequential()
+embedding_layer3 = Embedding(vocab_size, 100, weights=[embedding_matrix], input_length=maxlen , trainable=False)
+model3.add(embedding_layer3)
+model3.add(LSTM(128))
+model3.add(Dropout(0.2))
+model3.add(Dense(1, activation='relu'))
+ # Compile model
+model3.compile(optimizer="Adam", loss="mse", metrics=["mae",'mape'])
+print(model3.summary())
+# Fit the model
+history3 = model3.fit(X_train, y_train, batch_size=128, epochs=6, verbose=1, validation_split=0.2)
+# Score the model
+score3 = model3.evaluate(X_test, y_test, verbose=1)
+# """
+
+# # Recurrent Neural Network (GRU)
+
+# # """
+
+# model4 = Sequential()
+# embedding_layer4 = Embedding(vocab_size, 100, weights=[embedding_matrix], input_length=maxlen , trainable=False)
+# model4.add(embedding_layer4)
+# model4.add(GRU(100))
+# model4.add(Dropout(0.2))
+# model4.add(Dense(1, activation='relu'))
+# model4.compile(optimizer="Adam", loss="mse", metrics=["mae",'mape'])
+
+# print(model4.summary())
+
+# history4 = model4.fit(X_train, y_train, batch_size=128, epochs=6, verbose=1, validation_split=0.2)
 
